@@ -29,6 +29,13 @@ def main():
 Entity:B
 \tcolor:yellow
 \tsize:small
+Entity:C
+\tcolor:blue
+\tsize:small
+Relation:A-C
+\tfrom_entity:A
+\tto_entity:C
+\tdesc:rel from a to c
 Relation:A-B
 \tfrom_entity:A
 \tto_entity:B
@@ -124,14 +131,54 @@ def layout_1(elem_dict):
         name_ent_map[e.name] = e
 
     for r in elem_dict["Relation"]:
-        e_from = name_ent_map[r.from_entity[0]]
-        e_to = name_ent_map[r.to_entity[0]]
+        e_from = name_ent_map[r.from_entity[0].value]
+        e_to = name_ent_map[r.to_entity[0].value]
         m_rel[ent_idx_map[e_from]][ent_idx_map[e_to]] = 1
 
     print m_rel
 
+    weight = [0] * ent_cnt
+    for x in range(0, ent_cnt):
+        for y in range(0, ent_cnt):
+            weight[x] += m_rel[x][y]
+            weight[y] += m_rel[x][y]
+
+    print weight
+
+    leveled_weight = index_list_with_level(weight)
+    print "leveled weight"
+    print leveled_weight
+
+    fit_levels = []
+    tmp_level = 0
+    for w in leveled_weight:
+        fit_levels.append(find_fit_level(len(w), slots, tmp_level))
+        tmp_level = fit_levels[-1]
+
+    print "level:"
+    print fit_levels
 
 
+def index_list_with_level(l):
+    d = [(i, l[i]) for i in range(len(l))]
+    d = sorted(d, key=lambda i:i[1], reverse=True)
+    print d
+    ret = [[]]
+    cur_ret = ret[0]
+    for i in d:
+        if len(cur_ret) > 0 and i[1] < cur_ret[0][1]:
+            cur_ret = []
+            ret.append(cur_ret)
+        cur_ret.append(i)
+        print cur_ret
+
+    return ret
+
+def find_fit_level(cnt, slots, from_level):
+    for i in range(from_level, len(slots)):
+        if cnt <= len(slots[i]):
+            return i
+    raise Exception("Cannot find fit level")
 
 
 if __name__ == '__main__':
