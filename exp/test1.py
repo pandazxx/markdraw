@@ -20,6 +20,10 @@ ENTITY_FORMAT = '''
   <rect x="%d" y="%d" rx="20" ry="20" width="%d" height="%d" style="fill:red;stroke:black;stroke-width:5;opacity:0.5" />
 '''
 
+RELATION_FORMAT = '''
+    <line x1="%d" y1="%d" x2="%d" y2="%d" style="stroke:rgb(255,0,0);stroke-width:2" />
+'''
+
 def main():
     r = re.compile(r'(?P<tabs>\t*)(?P<name>[^:]+):(?P<value>.*)')
     #print r.match('\t\tname abc:value dafadd 88**??').groupdict()
@@ -79,11 +83,49 @@ Relation:A-B
     f.write('''</svg>''')
     f.close()
 
-    layout_1(ent_dict)
+    (entity_layouts, relation_layouts) = layout_1(ent_dict)
+
+    f = open("/tmp/svg_out2.svg", "w")
+    f.write('''
+             <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+            ''')
+    f.write(draw_entities(entity_layouts))
+    f.write(draw_relations(relation_layouts))
+    f.write('''</svg>''')
+    f.close()
+
+
 
 class rect_layout(object):
+    def __init__(self, center, size):
+        #ret = rect_layout()
+        self.center = center
+        self.size = size
+        self.origin = (center[0] - size[0]/2, center[1] - size[1]/2)
+
+    def get_junction_point(self, to_point):
+        delta_x = to_point[0] - self.center[0]
+        delta_y = to_point[1] - self.center[1]
+        x_rato = abs(delta_x/self.size[0])
+        y_rato = abs(delta_y/self.size[1])
+        horizontal = x_rato > y_rato
+
+        upper = (self.center[0], self.center[1] - self.size[1]/2)
+        lower = (self.center[0], self.center[1] + self.size[1]/2)
+        left = (self.center[0] - self.size[0]/2, self.center[1])
+        right = (self.center[0] + self.size[0]/2, self.center[1])
+
+        if delta_x > 0 and delta_y > 0:
+            return right if horizontal else lower
+        elif delta_x > 0 and delta_y < 0:
+            return right if horizontal else upper
+        elif delta_x < 0 and delta_y > 0:
+            return left if horizontal else lower
+        elif delta_x < 0 and delta_y < 0:
+            return left if horizontal else upper
+
     def print_svg_element(self):
-        return ENTITY_FORMAT % (self.x, self.y, self.width, self.height)
+        return ENTITY_FORMAT % (self.origin[0], self.origin[1], self.size[0], self.size[1])
 
 class arrow_layout(object):
     pass
@@ -99,8 +141,7 @@ def layout(elem_dict):
     x = start_x
     y = start_y
     for i in elem_dict['Entity']:
-        r = rect_layout()
-        (r.x, r.y, r.width, r.height) = (x, y, width, height)
+        r = rect_layout((x, y), (width, height))
         layout_objs.append(r)
         x = x + width + margin
 
@@ -130,10 +171,18 @@ def layout_1(elem_dict):
         ent_idx_map[e] = i
         name_ent_map[e.name] = e
 
+    relation_list = []
+
     for r in elem_dict["Relation"]:
         e_from = name_ent_map[r.from_entity[0].value]
         e_to = name_ent_map[r.to_entity[0].value]
         m_rel[ent_idx_map[e_from]][ent_idx_map[e_to]] = 1
+
+        rel_layout = arrow_layout()
+        rel_layout.from_ent = e_from
+        rel_layout.to_ent = e_to
+        rel_layout.text = r.desc[0].value
+        relation_list.append(rel_layout)
 
     print m_rel
 
@@ -158,6 +207,51 @@ def layout_1(elem_dict):
     print "level:"
     print fit_levels
 
+    ret = {}
+    for i in range(len(leveled_weight)):
+        level_slots = slots[fit_levels[i]]
+        for j in range(len(leveled_weight[i])):
+            ent_idx = leveled_weight[i][j][0]
+            ent = elem_dict["Entity"][ent_idx]
+            slot = level_slots[j]
+            r = rect_layout(slot, entity_size)
+            r.ent = ent
+            ret[ent.name] = r
+
+    for k in ret:
+        print ret[k].ent.name
+        print ret[k].center
+        print ret[k].origin
+
+    for rl in relation_list:
+        #from_layout = ret[ent_idx_map[rl.from_ent]]
+        #to_layout = ret[ent_idx_map[rl.to_ent]]
+        from_layout = ret[rl.from_ent.name]
+        to_layout = ret[rl.to_ent.name]
+        from_pnt = from_layout.get_junction_point(to_layout.center)
+        to_pnt = to_layout.get_junction_point(from_layout.center)
+        rl.from_point = from_pnt
+        rl.to_point = to_pnt
+
+    for k in relation_list:
+        print "K in rl"
+        print k.from_point
+        print k.to_point
+
+    return (ret, relation_list)
+
+def draw_entities(entities_layouts):
+    ret = ""
+    for el in entities_layouts:
+        l = entities_layouts[el]
+        ret += ENTITY_FORMAT % (l.origin[0], l.origin[1], l.size[0], l.size[1])
+    return ret
+
+def draw_relations(relation_layouts):
+    ret = ""
+    for rl in relation_layouts:
+        ret += RELATION_FORMAT % (rl.from_point[0], rl.from_point[1], rl.to_point[0], rl.to_point[1])
+    return ret;
 
 def index_list_with_level(l):
     d = [(i, l[i]) for i in range(len(l))]
