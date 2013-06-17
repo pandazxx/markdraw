@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_TEMPLATE="templates/default-template.svg"
 
 def main():
     inf = None
@@ -19,13 +20,19 @@ def main():
     inf.close()
     layout_results = layout.slot_layout(parse_results)
 
-    outf = open('/tmp/output.svg', 'w')
-    outf.write('''
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1">
-            ''')
+    body_str = ""
+
     for l in layout_results:
-        outf.write(l.to_svg_str())
-    outf.write('''</svg>''')
+        body_str += l.to_svg_str()
+
+    template_inf = open(_DEFAULT_TEMPLATE, 'r')
+    template_str = template_inf.read()
+    template_inf.close()
+
+    output_str = template_str % body_str
+
+    outf = open('/tmp/output.svg', 'w')
+    outf.write(output_str)
     outf.close()
 
 if __name__ == '__main__':
