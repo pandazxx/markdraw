@@ -79,15 +79,28 @@ class _RectLayout(object):
 
 class _ArrowLayout(LayoutResult):
     """Layout result for arrow type"""
-    def __init__(self, from_point=None, to_point=None):
+    def __init__(self, from_point=None, to_point=None, level=0):
         """init"""
         self.from_point, self.to_point = (from_point, to_point)
+        self.level = level
 
     def to_svg_str(self):
+        #RELATION_FORMAT = '''
+            #<line x1="%d" y1="%d" x2="%d" y2="%d" style="stroke:rgb(255,0,0);stroke-width:2" />
+        #'''
         RELATION_FORMAT = '''
-            <line x1="%d" y1="%d" x2="%d" y2="%d" style="stroke:rgb(255,0,0);stroke-width:2" />
+            <path d="M%d %d Q %d %d %d %d" stroke="red" fill="None"  stroke-width="3"/>
         '''
-        return RELATION_FORMAT % (self.from_point.x, self.from_point.y, self.to_point.x, self.to_point.y)
+        mid_point = make_point(abs(self.from_point.x + self.to_point.x) / 2,
+                               abs(self.from_point.y + self.to_point.y) / 2)
+        offset = 10
+        #delta_x = if self.level % 2 == 0 : -1 * offset else: offset * self.level
+        delta_x = (1 if (self.level % 2) == 0 else -1) * offset * self.level
+        print delta_x
+        c_point = make_point(mid_point.x + delta_x, mid_point.y + delta_x*(abs(self.from_point.x - self.to_point.y) / abs(self.from_point.y - self.to_point.y)))
+        print (c_point.x, c_point.y)
+        #return RELATION_FORMAT % (self.from_point.x, self.from_point.y, self.to_point.x, self.to_point.y)
+        return RELATION_FORMAT % (self.from_point.x, self.from_point.y, c_point.x, c_point.y, self.to_point.x, self.to_point.y)
 
 def slot_layout(parse_result_dict):
     canvas_size = (500, 500)
@@ -128,6 +141,8 @@ def slot_layout(parse_result_dict):
         rel_layout.to_entity = e_to
         rel_layout.text = r.desc
         rel_layouts.append(rel_layout)
+        rel_layout.level = rel_matrix[dict_entity_index[e_from]][dict_entity_index[e_to]]
+        rel_layout.level += rel_matrix[dict_entity_index[e_to]][dict_entity_index[e_from]]
 
     logger.debug("Relation matrix:\n" + str(rel_matrix))
 

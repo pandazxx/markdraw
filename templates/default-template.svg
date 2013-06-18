@@ -12,6 +12,9 @@
       line {
         marker-end: url(#myMarker);
       }
+      path {
+        marker-end: url(#myMarker);
+      }
 
       ]]>
     </style>
